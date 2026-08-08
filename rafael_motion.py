@@ -69,7 +69,7 @@ WHEEL_CIRCUMFERENCE = pi * WHEEL_DIAMETER
 # We will verify this during testing.
 
 LEFT_DIRECTION = 1
-RIGHT_DIRECTION = 1
+RIGHT_DIRECTION = -1
 
 
 # ============================================================
