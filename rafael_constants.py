@@ -9,7 +9,7 @@ from math import pi
 # Robot Geometry
 # ------------------------
 
-WHEEL_DIAMETER = 85.0          # mm
+WHEEL_DIAMETER = 81.73          # mm calibrated after measuring
 WHEEL_RADIUS = WHEEL_DIAMETER / 2
 
 WHEEL_CIRCUMFERENCE = pi * WHEEL_DIAMETER
@@ -20,8 +20,8 @@ TRACK_WIDTH = 142.0            # mm
 # Drive Motors
 # ------------------------
 
-LEFT_PORT = "A"
-RIGHT_PORT = "E"
+LEFT_PORT = "E"
+RIGHT_PORT = "A"
 
 # ------------------------
 # Sensors
