@@ -71,7 +71,8 @@ heading = 0.0
 
 _previous_left_angle = 0.0
 _previous_right_angle = 0.0
-
+LEFT_ENCODER_SIGN = 1
+RIGHT_ENCODER_SIGN = -1
 
 # ============================================================
 # ODOMETRY TIMER
@@ -224,12 +225,12 @@ def update():
     left_delta_angle = (
         current_left_angle -
         _previous_left_angle
-    )
+    ) * LEFT_ENCODER_SIGN
 
     right_delta_angle = (
         current_right_angle -
         _previous_right_angle
-    )
+    ) * RIGHT_ENCODER_SIGN
 
     # --------------------------------------------------------
     # Save encoder positions
