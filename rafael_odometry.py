@@ -103,14 +103,14 @@ def get_gyro_heading():
     Pybricks reports positive heading as clockwise.
 
     Our coordinate system uses positive angles
-    counter-clockwise.
+    clockwise.
 
     Therefore:
 
-        mathematical_heading = -pybricks_heading
+        mathematical_heading = pybricks_heading
     """
 
-    return -gyro.heading()
+    return gyro.heading()
 
 
 def normalize_heading(angle):
@@ -255,15 +255,6 @@ def update():
         left_distance + right_distance
     ) / 2.0
 
-    print(
-        "L:",
-        round(left_distance, 2),
-        "R:",
-        round(right_distance, 2),
-        "Forward:",
-        round(forward_distance, 2)
-    )
-
     # --------------------------------------------------------
     # Get gyro heading
     # --------------------------------------------------------
@@ -281,7 +272,7 @@ def update():
     # --------------------------------------------------------
 
     dx = forward_distance * cos(theta)
-    dy = -forward_distance * sin(theta)
+    dy = forward_distance * sin(theta)
 
     # --------------------------------------------------------
     # Update position
@@ -289,7 +280,16 @@ def update():
 
     x += dx
     y += dy
-    
+    """
+    print(
+        "L:",
+        round(left_distance, 2),
+        "R:",
+        round(right_distance, 2),
+        "Forward:",
+        round(forward_distance, 2)
+    )
+    """
 
 
 # ============================================================
