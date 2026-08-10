@@ -50,6 +50,7 @@ from rafael_constants import (
 
 import rafael_odometry
 
+
 # ============================================================
 # CONSTANTS
 # ============================================================
@@ -151,10 +152,10 @@ def get_heading():
         clockwise positive
 
     Our system:
-        counter-clockwise positive
+        clockwise positive
     """
 
-    return -gyro.heading()
+    return gyro.heading()
 
 
 # ============================================================
@@ -378,7 +379,7 @@ def drive_distance(
         # ----------------------------------------------------
 
         rafael_odometry.update()
-        #rafael_odometry.print_position()
+
         wait(10)
 
     # --------------------------------------------------------
@@ -412,12 +413,12 @@ def drive_straight(distance_mm, speed=CRUISE_SPEED):
     """
 
     heading = get_heading()
+
     drive_distance(
         distance_mm,
         speed,
         heading
     )
-    
 
 
 # ============================================================
@@ -445,7 +446,7 @@ def turn_to(
 
         current_heading = get_heading()
 
-        error = normalize_angle(
+        error = -normalize_angle(
             target_heading -
             current_heading
         )
@@ -455,6 +456,7 @@ def turn_to(
         # ----------------------------------------------------
 
         if abs(error) < 1.0:
+
             break
 
         # ----------------------------------------------------
@@ -527,13 +529,13 @@ def turn_by(angle):
 
         turn_by(90)
 
-    rotates 90° counter-clockwise.
+    rotates 90° clockwise.
 
     Example:
 
         turn_by(-90)
 
-    rotates 90° clockwise.
+    rotates 90° counter-clockwise.
     """
 
     current = get_heading()
