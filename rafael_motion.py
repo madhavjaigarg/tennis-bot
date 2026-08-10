@@ -21,9 +21,9 @@ The system uses:
 Coordinate convention:
 
     0°    = +X
-    90°   = +Y
+    -90°   = +Y
     180°  = -X
-    -90°  = -Y
+    90°  = -Y
 
 Important:
     odometry.py uses the same mathematical heading convention.
@@ -33,17 +33,22 @@ from math import pi
 
 from pybricks.tools import wait
 
-from robot import left_motor, right_motor, gyro
+from rafael_robot import left_motor, right_motor, gyro
 
-from constants import (
+from rafael_constants import (
     WHEEL_DIAMETER,
     CRUISE_SPEED,
     TURN_SPEED,
     MAX_SPEED,
+    DRIVE_KP,
+    DRIVE_KI,
+    DRIVE_KD,
+    TURN_KP,
+    TURN_KI,
+    TURN_KD,
 )
 
-import odometry
-
+import rafael_odometry
 
 # ============================================================
 # CONSTANTS
@@ -68,8 +73,8 @@ WHEEL_CIRCUMFERENCE = pi * WHEEL_DIAMETER
 #
 # We will verify this during testing.
 
-LEFT_DIRECTION = 1
-RIGHT_DIRECTION = -1
+LEFT_DIRECTION = -1
+RIGHT_DIRECTION = 1
 
 
 # ============================================================
@@ -81,16 +86,16 @@ RIGHT_DIRECTION = -1
 # This compares the desired gyro heading against the
 # current gyro heading.
 
-STRAIGHT_KP = 4.0
-STRAIGHT_KI = 0.0
-STRAIGHT_KD = 0.15
+STRAIGHT_KP = DRIVE_KP
+STRAIGHT_KI = DRIVE_KI
+STRAIGHT_KD = DRIVE_KD
 
 
 # Turning PID.
 
-TURN_KP = 5.0
-TURN_KI = 0.0
-TURN_KD = 0.20
+TURNING_KP = TURN_KP
+TURNING_KI = TURN_KI
+TURNING_KD = TURN_KD
 
 
 # ============================================================
@@ -372,8 +377,8 @@ def drive_distance(
         # Update odometry
         # ----------------------------------------------------
 
-        odometry.update()
-
+        rafael_odometry.update()
+        #rafael_odometry.print_position()
         wait(10)
 
     # --------------------------------------------------------
@@ -386,7 +391,7 @@ def drive_distance(
     wait(50)
 
     # Final odometry update.
-    odometry.update()
+    rafael_odometry.update()
 
 
 # ============================================================
@@ -407,12 +412,12 @@ def drive_straight(distance_mm, speed=CRUISE_SPEED):
     """
 
     heading = get_heading()
-
     drive_distance(
         distance_mm,
         speed,
         heading
     )
+    
 
 
 # ============================================================
@@ -450,7 +455,6 @@ def turn_to(
         # ----------------------------------------------------
 
         if abs(error) < 1.0:
-
             break
 
         # ----------------------------------------------------
@@ -467,9 +471,9 @@ def turn_to(
         previous_error = error
 
         turn_power = (
-            TURN_KP * error +
-            TURN_KI * integral +
-            TURN_KD * derivative
+            TURNING_KP * error +
+            TURNING_KI * integral +
+            TURNING_KD * derivative
         )
 
         # ----------------------------------------------------
@@ -500,7 +504,7 @@ def turn_to(
             turn_power
         )
 
-        odometry.update()
+        rafael_odometry.update()
 
         wait(10)
 
@@ -508,7 +512,7 @@ def turn_to(
 
     wait(75)
 
-    odometry.update()
+    rafael_odometry.update()
 
 
 # ============================================================
@@ -569,7 +573,7 @@ def test_forward():
     drive_straight(500)
 
     print("Position:")
-    odometry.print_position()
+    rafael_odometry.print_position()
 
 
 def test_turn():
@@ -582,7 +586,7 @@ def test_turn():
     turn_by(90)
 
     print("Position:")
-    odometry.print_position()
+    rafael_odometry.print_position()
 
 
 def test_motion():
@@ -606,4 +610,4 @@ def test_motion():
 
     print("FINAL POSITION")
 
-    odometry.print_position()
+    rafael_odometry.print_position()
