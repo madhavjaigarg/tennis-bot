@@ -20,9 +20,9 @@ Coordinate convention:
               -Y
 
 heading = 0°  -> +X
-heading = 90° -> +Y
+heading = -90° -> +Y
 heading = 180° -> -X
-heading = -90° -> -Y
+heading = 90° -> -Y
 
 This file uses:
     - Left motor encoder
@@ -37,8 +37,8 @@ from math import pi, sin, cos, radians
 
 from pybricks.tools import StopWatch, wait
 
-from robot import left_motor, right_motor, gyro
-from constants import WHEEL_DIAMETER
+from rafael_robot import left_motor, right_motor, gyro
+from rafael_constants import WHEEL_DIAMETER
 
 
 # ============================================================
@@ -59,9 +59,9 @@ y = 0.0
 # Mathematical heading.
 #
 # 0   = +X
-# 90  = +Y
+# -90  = +Y
 # 180 = -X
-# -90 = -Y
+# 90 = -Y
 heading = 0.0
 
 
@@ -255,6 +255,15 @@ def update():
         left_distance + right_distance
     ) / 2.0
 
+    print(
+        "L:",
+        round(left_distance, 2),
+        "R:",
+        round(right_distance, 2),
+        "Forward:",
+        round(forward_distance, 2)
+    )
+
     # --------------------------------------------------------
     # Get gyro heading
     # --------------------------------------------------------
@@ -272,7 +281,7 @@ def update():
     # --------------------------------------------------------
 
     dx = forward_distance * cos(theta)
-    dy = forward_distance * sin(theta)
+    dy = -forward_distance * sin(theta)
 
     # --------------------------------------------------------
     # Update position
@@ -280,6 +289,7 @@ def update():
 
     x += dx
     y += dy
+    
 
 
 # ============================================================
