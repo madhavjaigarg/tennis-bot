@@ -9,7 +9,7 @@ from math import pi
 # Robot Geometry
 # ------------------------
 
-WHEEL_DIAMETER = 81.73          # mm calibrated after measuring
+WHEEL_DIAMETER = 85.00         # mm
 WHEEL_RADIUS = WHEEL_DIAMETER / 2
 
 WHEEL_CIRCUMFERENCE = pi * WHEEL_DIAMETER
