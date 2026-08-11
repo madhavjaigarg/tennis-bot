@@ -71,8 +71,8 @@ heading = 0.0
 
 _previous_left_angle = 0.0
 _previous_right_angle = 0.0
-LEFT_ENCODER_SIGN = 1
-RIGHT_ENCODER_SIGN = -1
+LEFT_ENCODER_SIGN = -1
+RIGHT_ENCODER_SIGN = 1
 
 # ============================================================
 # ODOMETRY TIMER
@@ -110,7 +110,7 @@ def get_gyro_heading():
         mathematical_heading = pybricks_heading
     """
 
-    return gyro.heading()
+    return (gyro.heading() + 180) % 360 - 180
 
 
 def normalize_heading(angle):
@@ -280,7 +280,7 @@ def update():
 
     x += dx
     y += dy
-    """
+    
     print(
         "L:",
         round(left_distance, 2),
@@ -289,7 +289,7 @@ def update():
         "Forward:",
         round(forward_distance, 2)
     )
-    """
+    
 
 
 # ============================================================
