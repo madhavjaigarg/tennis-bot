@@ -155,7 +155,7 @@ def get_heading():
         clockwise positive
     """
 
-    return gyro.heading()
+    return rafael_odometry.get_gyro_heading()
 
 
 # ============================================================
@@ -379,6 +379,8 @@ def drive_distance(
         # ----------------------------------------------------
 
         rafael_odometry.update()
+
+        print(rafael_odometry.print_position())
 
         wait(10)
 
