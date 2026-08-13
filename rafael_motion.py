@@ -438,7 +438,7 @@ def turn_to(
 
         turn_to(90)
 
-    turns until the robot faces +Y.
+    turns until the robot faces -Y.
     """
 
     integral = 0
@@ -448,10 +448,7 @@ def turn_to(
 
         current_heading = get_heading()
 
-        error = -normalize_angle(
-            target_heading -
-            current_heading
-        )
+        error = -(target_heading - current_heading)
 
         # ----------------------------------------------------
         # Finished?
