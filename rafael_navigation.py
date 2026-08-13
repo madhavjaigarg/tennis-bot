@@ -145,8 +145,8 @@ def angleTo(target_x, target_y):
         atan2(-dy, dx)
     )
 
-    return normalize_angle(angle)
-    
+    #return normalize_angle(angle)
+    return angle
     
 
 # ============================================================
@@ -225,11 +225,12 @@ def goTo(target_x, target_y):
     # Calculate required heading
     # --------------------------------------------------------
 
-    target_heading = normalize_angle(
-        degrees(
-          atan2(-dy, dx)
-       )
-    )
+    #target_heading = normalize_angle(
+        #degrees(
+        #  atan2(-dy, dx)
+       #)
+    #)
+    target_heading = degrees(atan2(-dy,dx))
     
 
     # --------------------------------------------------------
