@@ -112,23 +112,6 @@ def get_gyro_heading():
 
     return (gyro.heading() + 180) % 360 - 180
 
-
-def normalize_heading(angle):
-    """
-    Convert any angle into the range:
-
-        -180° to +180°
-    """
-
-    while angle > 180:
-        angle -= 360
-
-    while angle < -180:
-        angle += 360
-
-    return angle
-
-
 # ============================================================
 # RESET
 # ============================================================
