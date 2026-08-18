@@ -44,13 +44,13 @@ MAX_ACCEL = 900
 # ------------------------
 # PID
 
-DRIVE_KP = 1.4
+DRIVE_KP = 0.07
 DRIVE_KI = 0.00
-DRIVE_KD = 0.08
+DRIVE_KD = 0.03
 
-TURN_KP = 2.1
-TURN_KI = 0.00
-TURN_KD = 0.12
+TURN_KP = 1.0
+TURN_KI = 0.0
+TURN_KD = 0.5
 
 # ------------------------
 # Field
