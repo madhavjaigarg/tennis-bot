@@ -1,5 +1,26 @@
+"""
+openmv_ball_server.py
+
+Runs ON THE OPENMV H7 PLUS (not the hub). Upload this to the
+camera as main.py, replacing the standalone print-based script.
+
+Same blob detection as before, but exposed over UART via
+Anton's Mindstorms uRemote library so the Pybricks hub can pull
+detections with ur.call("ball").
+
+uRemote can't send floats yet, so everything returned here is
+already an int (cx, cy, pixels are ints from find_blobs anyway).
+"""
+
 import sensor
 import time
+
+from uremote import uRemote
+
+
+# ============================================================
+# CAMERA SETUP
+# ============================================================
 
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
@@ -10,7 +31,27 @@ clock = time.clock()
 
 orange_threshold = (10, 100, 20, 127, 0, 100)
 
-while True:
+
+# ============================================================
+# uRemote SERVER
+# ============================================================
+
+ur = uRemote()
+
+
+def ball():
+    """
+    Handler for the "ball" command. Runs one frame, returns the
+    biggest orange blob found (or a "not found" reply).
+
+    Returns:
+        (found, x, y, area)
+
+        found = 1 or 0
+        x, y  = blob center in pixels (0 if not found)
+        area  = blob size in pixels (0 if not found)
+    """
+
     clock.tick()
 
     img = sensor.snapshot()
@@ -22,34 +63,20 @@ while True:
         merge=True
     )
 
-    if blobs:
-        biggest = max(blobs, key=lambda b: b.pixels)
+    if not blobs:
+        return 0, 0, 0, 0
 
-        x = biggest.cx
-        y = biggest.cy
-        area = biggest.pixels
-        width = biggest.w
-        height = biggest.h
+    biggest = max(blobs, key=lambda b: b.pixels)
 
-        # Firmware 5.0
-        img.draw_rectangle(biggest.rect)
-        img.draw_cross((x, y))
+    img.draw_rectangle(biggest.rect)
+    img.draw_cross((biggest.cx, biggest.cy))
 
-        if x < 106:
-            position = "LEFT"
-        elif x > 213:
-            position = "RIGHT"
-        else:
-            position = "CENTER"
+    return 1, biggest.cx, biggest.cy, biggest.pixels
 
-        print(
-            "x:", x,
-            "y:", y,
-            "area:", area,
-            position
-        )
 
-    else:
-        print("NO BALL")
+# ============================================================
+# SERVER LOOP
+# ============================================================
 
-    print("FPS:", clock.fps())
+while True:
+    ur.process()
