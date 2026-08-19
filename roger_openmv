@@ -1,204 +1,55 @@
-from pybricks.hubs import PrimeHub
-from pybricks.pupdevices import Motor, UltrasonicSensor
-from pybricks.parameters import Direction, Port
-from pybricks.tools import wait
-
-
-hub = PrimeHub()
-
-left_motor = Motor(
-    Port.A,
-    positive_direction=Direction.COUNTERCLOCKWISE
-)
-
-right_motor = Motor(
-    Port.E,
-    positive_direction=Direction.CLOCKWISE
-)
-
-distance_sensor = UltrasonicSensor(Port.D)
-
-
-wheel_diameter = 81
-axle_track = 142
-mm_per_motor_degree = 0.915
-
-search_step = 250
-safe_distance = 250
-drive_speed = 300
-turn_speed = 150
-
-
-x = 0
-y = 0
-heading = 0
-
-
-def normalize_angle(angle):
-    while angle > 180:
-        angle -= 360
-
-    while angle <= -180:
-        angle += 360
-
-    return angle
-
-
-def update_odometry():
-    global heading
-
-    heading = hub.imu.heading()
-
-
-def camera_detected_ball():
-    return False
-
-
-def obstacle_detected():
-    return distance_sensor.distance() <= safe_distance
-
-
-def stop():
-    left_motor.stop()
-    right_motor.stop()
-
-
-def drive_distance(distance):
-    start_left = left_motor.angle()
-    start_right = right_motor.angle()
-
-    target_degrees = abs(distance) / mm_per_motor_degree
-
-    direction = 1 if distance >= 0 else -1
-
-    while True:
-        left_delta = abs(left_motor.angle() - start_left)
-        right_delta = abs(right_motor.angle() - start_right)
-
-        average_delta = (left_delta + right_delta) / 2
-
-        if average_delta >= target_degrees:
-            break
-
-        left_motor.run(direction * drive_speed)
-        right_motor.run(direction * drive_speed)
-
-        update_odometry()
-
-        wait(5)
-
-    stop()
-    update_odometry()
-
-
-def drive_straight(distance):
-    target_heading = heading
-
-    start_left = left_motor.angle()
-    start_right = right_motor.angle()
-
-    target_degrees = abs(distance) / mm_per_motor_degree
-
-    direction = 1 if distance >= 0 else -1
-
-    while True:
-        left_delta = abs(left_motor.angle() - start_left)
-        right_delta = abs(right_motor.angle() - start_right)
-
-        average_delta = (left_delta + right_delta) / 2
-
-        if average_delta >= target_degrees:
-            break
-
-        current_heading = hub.imu.heading()
-
-        error = normalize_angle(
-            target_heading - current_heading
-        )
-
-        correction = error * 2
-
-        left_speed = direction * (drive_speed + correction)
-        right_speed = direction * (drive_speed - correction)
-
-        left_motor.run(left_speed)
-        right_motor.run(right_speed)
-
-        update_odometry()
-
-        wait(5)
-
-    stop()
-    update_odometry()
-
-
-def turn_to(target_heading):
-    while True:
-        current_heading = hub.imu.heading()
-
-        error = normalize_angle(
-            target_heading - current_heading
-        )
-
-        if abs(error) <= 1:
-            break
-
-        turn_power = error * 3
-
-        if turn_power > turn_speed:
-            turn_power = turn_speed
-
-        if turn_power < -turn_speed:
-            turn_power = -turn_speed
-
-        left_motor.run(-turn_power)
-        right_motor.run(turn_power)
-
-        update_odometry()
-
-        wait(5)
-
-    stop()
-    update_odometry()
-
-
-def turn_by(angle):
-    current_heading = hub.imu.heading()
-
-    target_heading = normalize_angle(
-        current_heading + angle
+import sensor
+import time
+
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time=2000)
+clock = time.clock()
+
+orange_threshold = (10, 100, 20, 127, 0, 100)
+
+while True:
+    clock.tick()
+
+    img = sensor.snapshot()
+
+    blobs = img.find_blobs(
+        [orange_threshold],
+        pixels_threshold=100,
+        area_threshold=10,
+        merge=True
     )
 
-    turn_to(target_heading)
+    if blobs:
+        biggest = max(blobs, key=lambda b: b.pixels)
 
+        x = biggest.cx
+        y = biggest.cy
+        area = biggest.pixels
+        width = biggest.w
+        height = biggest.h
 
-def search():
-    directions = [0, 90, 180, -90]
+        # Firmware 5.0
+        img.draw_rectangle(biggest.rect)
+        img.draw_cross((x, y))
 
-    while True:
+        if x < 106:
+            position = "LEFT"
+        elif x > 213:
+            position = "RIGHT"
+        else:
+            position = "CENTER"
 
-        for direction in directions:
+        print(
+            "x:", x,
+            "y:", y,
+            "area:", area,
+            position
+        )
 
-            turn_to(direction)
+    else:
+        print("NO BALL")
 
-            if camera_detected_ball():
-                stop()
-                return True
+    print("FPS:", clock.fps())
 
-            if obstacle_detected():
-                stop()
-                turn_by(90)
-                continue
-
-            drive_straight(search_step)
-
-            wait(50)
-
-
-hub.imu.reset_heading(0)
-
-x = 0
-y = 0
-heading = 0
-
-search()
