@@ -20,8 +20,8 @@ TRACK_WIDTH = 142.0            # mm
 # Drive Motors
 # ------------------------
 
-LEFT_PORT = "E"
-RIGHT_PORT = "A"
+LEFT_PORT = "A"
+RIGHT_PORT = "E"
 
 # ------------------------
 # Sensors
@@ -61,5 +61,5 @@ FIELD_HEIGHT = 1143.0
 # Goal coordinates
 # (We'll fill these after we define the field orientation.)
 
-GOAL_X = 0
-GOAL_Y = 0
+WALL_X = 0
+WALL_Y = 0
