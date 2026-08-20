@@ -1,141 +1,80 @@
 """
-RoboSports Camera Interface
-Pybricks hub side — reads ball detections streamed continuously
-from the OpenMV H7 Plus over a plain UART link.
+openmv_ball_server.py
 
-No third-party library — uses Pybricks' own
-pybricks.iodevices.UARTDevice directly.
+Runs ON THE OPENMV H7 PLUS (not the hub). Upload this to the
+camera as main.py, replacing the standalone print-based script.
 
-*** REQUIRES Pybricks firmware v4.0 or later on the hub ***
-UARTDevice support for SPIKE-style hubs (Prime Hub, Robot
-Inventor, Technic Hub) was added in Pybricks v4. On older
-firmware this class does not exist on these hubs and the import
-below will fail.
+No RPC library needed on this side either — just streams ball
+detections out over UART as plain ASCII lines, one per frame:
 
-Protocol (one-way — camera talks continuously, hub just reads
-whatever's newest):
+    "<found>,<x>,<y>,<area>\n"
 
-    OpenMV writes one ASCII line per frame:
+    found = 1 or 0
+    x, y  = blob center in pixels (0 if not found)
+    area  = blob size in pixels (0 if not found)
 
-        "<found>,<x>,<y>,<area>\n"
-
-    e.g. "1,145,88,512\n" or "0,0,0,0\n" when no ball is seen.
-    See openmv_ball_server.py for the camera-side script.
-
-Only job of this file: get the latest line and hand back plain
-numbers. No Cartesian conversion, no ball tracking logic — that
-lives in rafael_ball_tracking.py.
+The hub reads these continuously with rafael_camera.py.
 """
 
-from pybricks.iodevices import UARTDevice
-from pybricks.parameters import Port
+import sensor
+import time
+
+from machine import UART
 
 
 # ============================================================
-# CONNECTION
+# CAMERA SETUP
 # ============================================================
 
-# TODO: confirm this matches the port the OpenMV is actually
-# wired to.
-CAMERA_PORT = Port.F
-CAMERA_BAUDRATE = 115200
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time=2000)
 
-_uart = UARTDevice(CAMERA_PORT, baudrate=CAMERA_BAUDRATE,power_pin=2)
+clock = time.clock()
 
-
-# ============================================================
-# READ DETECTIONS
-# ============================================================
-
-_last_ball = {"found": False, "x": 0, "y": 0, "area": 0}
-
-
-def _parse_line(line):
-    """
-    Parse one "found,x,y,area" line (as BYTES, not str — Pybricks
-    MicroPython doesn't include bytes.decode(), so we never
-    convert to str at all and just work with bytes directly).
-
-    Returns None if the line is malformed (torn packet, partial
-    read, garbage) instead of raising, since UART data can
-    legitimately arrive split across reads.
-    """
-
-    parts = line.split(b",")
-
-    if len(parts) != 4:
-        return None
-
-    try:
-        found, x, y, area = (int(p) for p in parts)
-    except ValueError:
-        return None
-
-    return {
-        "found": bool(found),
-        "x": x,
-        "y": y,
-        "area": area,
-    }
-
-
-def read_ball():
-    """
-    Return the most recent ball detection from the camera.
-
-    Returns a dict:
-
-        {
-            "found": bool,
-            "x": int,      # raw pixel x, 0 = left edge of frame
-            "y": int,      # raw pixel y, 0 = top edge of frame
-            "area": int,   # blob size in pixels
-        }
-
-    x/y are camera-frame pixel coordinates, NOT field
-    coordinates — converting these into Cartesian positions
-    happens in rafael_ball_tracking.py.
-
-    Non-blocking: if no new complete line has arrived since the
-    last call, returns the last known reading. If the camera has
-    never sent a valid line yet, returns "not found".
-    """
-
-    global _last_ball
-
-    raw = _uart.read_all()
-
-    if not raw:
-        return _last_ball
-
-    lines = raw.split(b"\n")
-
-    # Walk backwards so we use the newest complete line and
-    # discard any backlog (and any trailing partial line) —
-    # for real-time control we only want the latest state.
-    for line in reversed(lines):
-
-        line = line.strip()
-
-        if not line:
-            continue
-
-        parsed = _parse_line(line)
-
-        if parsed is not None:
-            _last_ball = parsed
-            break
-
-    return _last_ball
+orange_threshold = (10, 100, 20, 127, 0, 100)
 
 
 # ============================================================
-# DEBUGGING
+# UART SETUP
 # ============================================================
 
-def print_ball():
-    """
-    Print the current ball reading. For testing the UART link.
-    """
+# TODO: confirm which UART bus number is wired to the hub on
+# your OpenMV H7 Plus (check your board's pinout for the pins
+# you actually soldered/connected TX/RX to).
+uart = UART(3, 115200)
 
-    print(read_ball())
+
+# ============================================================
+# MAIN LOOP
+# ============================================================
+
+while True:
+
+    clock.tick()
+
+    img = sensor.snapshot()
+
+    blobs = img.find_blobs(
+        [orange_threshold],
+        pixels_threshold=100,
+        area_threshold=10,
+        merge=True
+    )
+
+    if blobs:
+
+        biggest = max(blobs, key=lambda b: b.pixels)
+
+        img.draw_rectangle(biggest.rect)
+        img.draw_cross((biggest.cx, biggest.cy))
+
+        found, x, y, area = 1, biggest.cx, biggest.cy, biggest.pixels
+
+    else:
+        found, x, y, area = 0, 0, 0, 0
+
+    line = "{},{},{},{}\n".format(found, x, y, area)
+
+    uart.write(line)
