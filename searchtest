@@ -1,0 +1,71 @@
+from pybricks.parameters import Port, Direction
+from pybricks.pupdevices import Motor
+from pybricks.tools import wait
+
+import rafael_odometry
+
+uart = UARTDevice(Port.F, baudrate=115200, timeout=1000)
+
+left_motor = Motor(
+    Port.A,
+    positive_direction=Direction.COUNTERCLOCKWISE
+)
+
+right_motor = Motor(
+    Port.E,
+    positive_direction=Direction.CLOCKWISE
+)
+
+flywheel = Motor(
+    Port.C,
+    positive_direction=Direction.COUNTERCLOCKWISE
+)
+
+drive_speed = 600
+turn_speed = 300
+flywheel_speed = 1000
+
+buffer = b""
+
+rafael_odometry.reset_position(0, 0, 0)
+
+flywheel.run(flywheel_speed)
+
+print("spike ready")
+
+while True:
+    rafael_odometry.update()
+
+    data = uart.read_all()
+
+    if data:
+        buffer += data
+
+        while b"\n" in buffer:
+            line, buffer = buffer.split(b"\n", 1)
+
+            print("received:", line)
+
+            if line == b"no ball":
+                left_motor.stop()
+                right_motor.stop()
+
+            elif line.startswith(b"ball,"):
+                parts = line.split(b",")
+
+                if len(parts) >= 7:
+                    position = parts[6]
+
+                    if position == b"center":
+                        left_motor.run(drive_speed)
+                        right_motor.run(drive_speed)
+
+                    elif position == b"left":
+                        left_motor.run(-turn_speed)
+                        right_motor.run(turn_speed)
+
+                    elif position == b"right":
+                        left_motor.run(turn_speed)
+                        right_motor.run(-turn_speed)
+
+    wait(10)
