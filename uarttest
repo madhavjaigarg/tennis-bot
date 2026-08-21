@@ -1,0 +1,14 @@
+from pyb import UART
+import time
+
+uart = UART(3, 115200)
+
+while True:
+    uart.write("hello\n")
+    print("sent: hello")
+
+    if uart.any():
+        data = uart.read()
+        print("received:", data)
+
+    time.sleep_ms(500)
