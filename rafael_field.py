@@ -40,8 +40,8 @@ BARRIER_X = FIELD_WIDTH / 2.0      # 1181 mm — edge of our half
 FIELD_X_MIN = 0.0
 FIELD_X_MAX = BARRIER_X
 
-FIELD_Y_MIN = 0.0
-FIELD_Y_MAX = FIELD_HEIGHT         # 1143 mm — full width of our half
+FIELD_Y_MIN = -210.0
+FIELD_Y_MAX = 350.0         # 1143 mm — full width of our half
 
 
 # How far back from the barrier we stay, so odometry drift
