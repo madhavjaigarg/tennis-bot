@@ -1,19 +1,20 @@
+
+from math import atan2, degrees, radians, tan, cos, sin, sqrt
+
+from pybricks.iodevices import UARTDevice
 from pybricks.parameters import Port, Direction
 from pybricks.pupdevices import Motor
 from pybricks.tools import wait
 
+import rafael_motion
 import rafael_odometry
 
-uart = UARTDevice(Port.F, baudrate=115200, timeout=1000)
 
-left_motor = Motor(
-    Port.A,
-    positive_direction=Direction.COUNTERCLOCKWISE
-)
-
-right_motor = Motor(
-    Port.E,
-    positive_direction=Direction.CLOCKWISE
+uart = UARTDevice(
+    Port.F,
+    baudrate=115200,
+    timeout=1000,
+    power_pin=2
 )
 
 flywheel = Motor(
@@ -21,17 +22,176 @@ flywheel = Motor(
     positive_direction=Direction.COUNTERCLOCKWISE
 )
 
-drive_speed = 600
-turn_speed = 300
+
+image_width = 320
+camera_fov = 60.0
+ball_diameter_mm = 70.0
+
+base_speed = 500
+max_steering = 160
+heading_gain = 1.5
+
+approach_speed = 300
+stop_distance = 180.0
+
+search_speed = 80
+search_pause = 100
+
 flywheel_speed = 1000
 
 buffer = b""
 
+ball_seen = False
+ball_locked = False
+shooting = False
+
+
+focal_length = (
+    (image_width / 2.0) /
+    tan(radians(camera_fov / 2.0))
+)
+
+
+def normalize_angle(angle):
+    while angle > 180:
+        angle -= 360
+
+    while angle < -180:
+        angle += 360
+
+    return angle
+
+
+def get_ball_position(camera_x, ball_width):
+    if ball_width <= 0:
+        return None
+
+    distance = (
+        focal_length *
+        ball_diameter_mm /
+        ball_width
+    )
+
+    bearing = degrees(
+        atan2(
+            camera_x - image_width / 2.0,
+            focal_length
+        )
+    )
+
+    robot_x, robot_y, robot_heading = (
+        rafael_odometry.get_position()
+    )
+
+    ball_heading = robot_heading + bearing
+    heading_rad = radians(ball_heading)
+
+    ball_x = (
+        robot_x +
+        distance * cos(heading_rad)
+    )
+
+    ball_y = (
+        robot_y -
+        distance * sin(heading_rad)
+    )
+
+    return ball_x, ball_y, distance
+
+
+def drive_to_ball(ball_x, ball_y, distance):
+    robot_x, robot_y, robot_heading = (
+        rafael_odometry.get_position()
+    )
+
+    dx = ball_x - robot_x
+    dy = ball_y - robot_y
+
+    target_heading = degrees(
+        atan2(
+            -dy,
+            dx
+        )
+    )
+
+    heading_error = normalize_angle(
+        target_heading - robot_heading
+    )
+
+    steering = heading_error * heading_gain
+
+    if steering > max_steering:
+        steering = max_steering
+
+    if steering < -max_steering:
+        steering = -max_steering
+
+    if distance > 600:
+        speed = base_speed
+
+    elif distance > stop_distance:
+        speed = approach_speed
+
+    else:
+        rafael_motion.stop()
+        return True
+
+    left_speed = speed + steering
+    right_speed = speed - steering
+
+    rafael_motion.set_motor_speed(
+        left_speed,
+        right_speed
+    )
+
+    return False
+
+
+def search_for_ball():
+    rafael_motion.set_motor_speed(
+        -search_speed,
+        search_speed
+    )
+
+    wait(search_pause)
+
+    rafael_motion.set_motor_speed(
+        0,
+        0
+    )
+
+    wait(20)
+
+
+def face_ramp():
+    robot_x, robot_y, robot_heading = (
+        rafael_odometry.get_position()
+    )
+
+    dx = -robot_x
+    dy = -robot_y
+
+    target_heading = degrees(
+        atan2(
+            -dy,
+            dx
+        )
+    )
+
+    print(
+        "ramp heading:",
+        round(target_heading, 1)
+    )
+
+    rafael_motion.turn_to(target_heading)
+
+
 rafael_odometry.reset_position(0, 0, 0)
 
-flywheel.run(flywheel_speed)
+flywheel.stop()
 
-print("spike ready")
+print("cartesian ball system ready")
+
 
 while True:
     rafael_odometry.update()
@@ -47,25 +207,78 @@ while True:
             print("received:", line)
 
             if line == b"no ball":
-                left_motor.stop()
-                right_motor.stop()
+
+                if not ball_locked:
+                    ball_seen = False
+
+                    if not shooting:
+                        flywheel.stop()
+
+                    search_for_ball()
 
             elif line.startswith(b"ball,"):
+
                 parts = line.split(b",")
 
                 if len(parts) >= 7:
-                    position = parts[6]
 
-                    if position == b"center":
-                        left_motor.run(drive_speed)
-                        right_motor.run(drive_speed)
+                    try:
+                        camera_x = int(parts[1])
+                        ball_width = int(parts[4])
 
-                    elif position == b"left":
-                        left_motor.run(-turn_speed)
-                        right_motor.run(turn_speed)
+                        result = get_ball_position(
+                            camera_x,
+                            ball_width
+                        )
 
-                    elif position == b"right":
-                        left_motor.run(turn_speed)
-                        right_motor.run(-turn_speed)
+                        if result is not None:
+
+                            ball_seen = True
+
+                            ball_x, ball_y, distance = result
+
+                            if not shooting:
+
+                                flywheel.run(
+                                    flywheel_speed
+                                )
+
+                            print(
+                                "ball:",
+                                round(ball_x, 1),
+                                round(ball_y, 1),
+                                "distance:",
+                                round(distance, 1)
+                            )
+
+                            if not ball_locked:
+
+                                reached = drive_to_ball(
+                                    ball_x,
+                                    ball_y,
+                                    distance
+                                )
+
+                                if reached:
+
+                                    ball_locked = True
+
+                                    rafael_motion.stop()
+
+                                    wait(300)
+
+                                    face_ramp()
+
+                                    wait(500)
+
+                                    print(
+                                        "ball locked, ramp aligned"
+                                    )
+
+                                    shooting = True
+
+                    except:
+                        pass
 
     wait(10)
+
