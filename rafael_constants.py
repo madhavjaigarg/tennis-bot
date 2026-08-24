@@ -27,7 +27,7 @@ RIGHT_PORT = "E"
 # Sensors
 # ------------------------
 
-DISTANCE_PORT = "D"
+DISTANCE_PORT = "B"
 
 # ------------------------
 # Robot Limits
@@ -58,8 +58,8 @@ TURN_KD = 0.5
 FIELD_WIDTH = 2362.0
 FIELD_HEIGHT = 1143.0
 
-# Goal coordinates
-# (We'll fill these after we define the field orientation.)
+# Wall coordinates
+# The place to go on the slope.
 
 WALL_X = 0
 WALL_Y = 0
