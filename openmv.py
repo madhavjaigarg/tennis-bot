@@ -7,13 +7,17 @@ camera as main.py, replacing the standalone print-based script.
 No RPC library needed on this side either — just streams ball
 detections out over UART as plain ASCII lines, one per frame:
 
-    "<found>,<x>,<y>,<area>\n"
+    "<found>,<x>,<y>,<area>,<marker>\n"
 
-    found = 1 or 0
-    x, y  = blob center in pixels (0 if not found)
-    area  = blob size in pixels (0 if not found)
+    found  = 1 or 0
+    x, y   = blob center in pixels (0 if not found)
+    area   = blob size in pixels (0 if not found)
+    marker = fixed literal "END" — a disposable trailer. If a
+             line gets cut off mid-transmission, this is what
+             gets clipped first, since it's written last and
+             carries no real data.
 
-The hub reads these continuously with rafael_camera.py.
+See rafael_camera.py for the hub side.
 """
 
 import sensor
@@ -75,6 +79,7 @@ while True:
     else:
         found, x, y, area = 0, 0, 0, 0
 
-    line = "{},{},{},{}\n".format(found, x, y, area)
+    line = "{},{},{},{},END\n".format(found, x, y, area)
 
     uart.write(line)
+    print(line)
