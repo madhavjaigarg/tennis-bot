@@ -17,10 +17,11 @@ whatever's newest):
 
     OpenMV writes one ASCII line per frame:
 
-        "<found>,<x>,<y>,<area>\n"
+        "<found>,<x>,<y>,<area>,<marker>\n"
 
-    e.g. "1,145,88,512\n" or "0,0,0,0\n" when no ball is seen.
-    See openmv_ball_server.py for the camera-side script.
+    e.g. "1,145,88,512,END\n" or "0,0,0,0,END\n" when no ball is
+    seen. "END" is a fixed disposable trailer — see
+    openmv_ball_server.py for why.
 
 Only job of this file: get the latest line and hand back plain
 numbers. No Cartesian conversion, no ball tracking logic — that
@@ -35,12 +36,10 @@ from pybricks.parameters import Port
 # CONNECTION
 # ============================================================
 
-# TODO: confirm this matches the port the OpenMV is actually
-# wired to.
 CAMERA_PORT = Port.F
 CAMERA_BAUDRATE = 115200
 
-_uart = UARTDevice(CAMERA_PORT, baudrate=CAMERA_BAUDRATE,power_pin=2)
+_uart = UARTDevice(CAMERA_PORT, baudrate=CAMERA_BAUDRATE, power_pin=2)
 
 
 # ============================================================
@@ -52,22 +51,27 @@ _last_ball = {"found": False, "x": 0, "y": 0, "area": 0}
 
 def _parse_line(line):
     """
-    Parse one "found,x,y,area" line (as BYTES, not str — Pybricks
-    MicroPython doesn't include bytes.decode(), so we never
-    convert to str at all and just work with bytes directly).
+    Parse one "found,x,y,area,END" line (as BYTES, not str —
+    Pybricks MicroPython doesn't include bytes.decode(), so we
+    never convert to str at all and just work with bytes
+    directly).
 
     Returns None if the line is malformed (torn packet, partial
-    read, garbage) instead of raising, since UART data can
-    legitimately arrive split across reads.
+    read, garbage), or if the trailing "END" marker is missing
+    or cut short — a torn tail read clips this disposable marker
+    first, before it can clip real data.
     """
 
     parts = line.split(b",")
 
-    if len(parts) != 4:
+    if len(parts) != 5:
+        return None
+
+    if parts[4] != b"END":
         return None
 
     try:
-        found, x, y, area = (int(p) for p in parts)
+        found, x, y, area = (int(p) for p in parts[:4])
     except ValueError:
         return None
 
@@ -108,11 +112,16 @@ def read_ball():
     if not raw:
         return _last_ball
 
-    lines = raw.split(b"\n")
+    # split(b"\n") always leaves the LAST element as either an
+    # empty string (raw ended cleanly on a newline) or a torn,
+    # still-being-written line (raw was read mid-transmission —
+    # this is what was truncating "area", the last field before
+    # the newline). Either way, drop it before parsing anything.
+    lines = raw.split(b"\n")[:-1]
 
     # Walk backwards so we use the newest complete line and
-    # discard any backlog (and any trailing partial line) —
-    # for real-time control we only want the latest state.
+    # discard any backlog — for real-time control we only want
+    # the latest state.
     for line in reversed(lines):
 
         line = line.strip()
