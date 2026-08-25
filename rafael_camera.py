@@ -39,8 +39,7 @@ from pybricks.parameters import Port
 CAMERA_PORT = Port.F
 CAMERA_BAUDRATE = 115200
 
-_uart = UARTDevice(CAMERA_PORT, baudrate=CAMERA_BAUDRATE, power_pin=2)
-
+_uart = UARTDevice(CAMERA_PORT, baudrate=CAMERA_BAUDRATE, power_pin=2, timeout=1000)
 
 # ============================================================
 # READ DETECTIONS
