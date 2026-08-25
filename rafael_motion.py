@@ -32,6 +32,7 @@ Important:
 from math import pi
 
 from pybricks.tools import wait
+import rafael_camera
 
 from rafael_robot import left_motor, right_motor, gyro
 
@@ -206,7 +207,8 @@ def degrees_for_distance(distance_mm):
 def drive_distance(
     distance_mm,
     speed=CRUISE_SPEED,
-    heading=None
+    heading=None,
+    stop_condition=None
 ):
     """
     Drive a specified distance.
@@ -225,6 +227,14 @@ def drive_distance(
 
     If heading is supplied, gyro correction keeps
     the robot travelling in that direction.
+
+    If stop_condition is supplied, it's called once per loop
+    tick (roughly every 10ms) and takes no arguments. The instant
+    it returns True, the drive stops immediately — even if the
+    target distance hasn't been reached — and this function
+    returns True. Otherwise it drives the full distance and
+    returns False. Used for things like scanning for the ball
+    while patrolling, without waiting for each leg to finish.
     """
 
     # --------------------------------------------------------
@@ -272,7 +282,7 @@ def drive_distance(
     # --------------------------------------------------------
 
     while True:
-
+        
         # ----------------------------------------------------
         # Encoder distance
         # ----------------------------------------------------
@@ -300,6 +310,18 @@ def drive_distance(
         if remaining <= 2:
 
             break
+
+        # ----------------------------------------------------
+        # Interrupted?
+        # ----------------------------------------------------
+        found_ball = stop_condition is not None and stop_condition()
+        #print("checking:", stop_condition, found_ball, rafael_camera.print_ball())
+
+        if found_ball:
+            stop()
+            wait(50)
+            rafael_odometry.update()
+            return True
 
         # ----------------------------------------------------
         # Calculate base speed
@@ -364,12 +386,12 @@ def drive_distance(
         # ----------------------------------------------------
 
         left_speed = (
-            (direction * base_speed) +
+            direction * base_speed +
             correction
         )
 
         right_speed = (
-            (direction * base_speed) -
+            direction * base_speed -
             correction
         )
 
@@ -412,12 +434,14 @@ def drive_distance(
     # Final odometry update.
     rafael_odometry.update()
 
+    return False
+
 
 # ============================================================
 # DRIVE STRAIGHT
 # ============================================================
 
-def drive_straight(distance_mm, speed=CRUISE_SPEED):
+def drive_straight(distance_mm, speed=CRUISE_SPEED, stop_condition=None):
     """
     Drive straight relative to the robot's current heading.
 
@@ -432,10 +456,11 @@ def drive_straight(distance_mm, speed=CRUISE_SPEED):
 
     heading = get_heading()
 
-    drive_distance(
+    return drive_distance(
         distance_mm,
         speed,
-        heading
+        heading,
+        stop_condition=stop_condition
     )
 
 
@@ -445,7 +470,8 @@ def drive_straight(distance_mm, speed=CRUISE_SPEED):
 
 def turn_to(
     target_heading,
-    speed=TURN_SPEED
+    speed=TURN_SPEED,
+    stop_condition=None
 ):
     """
     Turn to an absolute mathematical heading.
@@ -455,6 +481,11 @@ def turn_to(
         turn_to(90)
 
     turns until the robot faces -Y.
+
+    If stop_condition is supplied, it's checked once per loop
+    tick; the turn stops immediately and this function returns
+    True the instant it returns True. Otherwise it turns all the
+    way to target_heading and returns False.
     """
 
     integral = 0
@@ -473,6 +504,19 @@ def turn_to(
         if abs(error) < 1.0:
 
             break
+
+        # ----------------------------------------------------
+        # Interrupted?
+        # ----------------------------------------------------
+
+        found_ball = stop_condition is not None and stop_condition()
+        #print("checking:", stop_condition, found_ball)
+
+        if found_ball:
+            stop()
+            wait(50)
+            rafael_odometry.update()
+            return True
 
         # ----------------------------------------------------
         # PID
@@ -531,12 +575,14 @@ def turn_to(
 
     rafael_odometry.update()
 
+    return False
+
 
 # ============================================================
 # RELATIVE TURN
 # ============================================================
 
-def turn_by(angle):
+def turn_by(angle, stop_condition=None):
     """
     Turn relative to the robot's current heading.
 
@@ -559,7 +605,7 @@ def turn_by(angle):
         current + angle
     )
 
-    turn_to(target)
+    return turn_to(target, stop_condition=stop_condition)
 
 
 # ============================================================
