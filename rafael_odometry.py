@@ -151,6 +151,30 @@ def reset_position(new_x=0.0, new_y=0.0, new_heading=0.0):
 
 
 # ============================================================
+# ENCODER RESYNC
+# ============================================================
+
+def sync_encoder_reference():
+    """
+    Re-sync odometry's stored encoder reference points to the
+    motors' current raw angle reading.
+
+    Call this immediately after resetting a motor's encoder count
+    directly (e.g. left_motor.reset_angle(0), as drive_distance()
+    does). Without this, update()'s next call compares its old
+    reference angle against the freshly-reset ~0 encoder value,
+    producing one large bogus delta — and therefore one bogus
+    jump in x/y — right at the start of every drive.
+    """
+
+    global _previous_left_angle
+    global _previous_right_angle
+
+    _previous_left_angle = left_motor.angle()
+    _previous_right_angle = right_motor.angle()
+
+
+# ============================================================
 # READ POSITION
 # ============================================================
 
