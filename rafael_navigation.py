@@ -176,7 +176,7 @@ def facePoint(target_x, target_y):
 # GO TO POINT
 # ============================================================
 
-def goTo(target_x, target_y):
+def goTo(target_x, target_y, stop_condition=None):
     """
     Drive the robot to a Cartesian target.
 
@@ -192,6 +192,12 @@ def goTo(target_x, target_y):
         4. Calculates the target distance.
         5. Drives that distance.
         6. Updates odometry.
+
+    If stop_condition is supplied, it's checked continuously
+    during both the turn and the drive. The instant it returns
+    True, movement stops immediately (mid-turn or mid-drive) and
+    this function returns True without reaching target_x/target_y.
+    Otherwise it completes the full move and returns False.
     """
 
     # --------------------------------------------------------
@@ -219,7 +225,7 @@ def goTo(target_x, target_y):
     # --------------------------------------------------------
 
     if distance < 1.0:
-        return
+        return False
 
     # --------------------------------------------------------
     # Calculate required heading
@@ -237,9 +243,13 @@ def goTo(target_x, target_y):
     # Turn toward target
     # --------------------------------------------------------
 
-    rafael_motion.turn_to(
-        target_heading
+    turn_interrupted = rafael_motion.turn_to(
+        target_heading,
+        stop_condition=stop_condition
     )
+
+    if turn_interrupted:
+        return True
 
     # --------------------------------------------------------
     # Drive toward target
@@ -249,9 +259,10 @@ def goTo(target_x, target_y):
     # the direction we just turned toward.
     # --------------------------------------------------------
 
-    rafael_motion.drive_distance(
+    interrupted = rafael_motion.drive_distance(
         distance,
-        heading=target_heading
+        heading=target_heading,
+        stop_condition=stop_condition
     )
 
     # --------------------------------------------------------
@@ -259,6 +270,8 @@ def goTo(target_x, target_y):
     # --------------------------------------------------------
 
     rafael_odometry.update()
+
+    return interrupted
 
 
 # ============================================================
