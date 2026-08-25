@@ -27,21 +27,26 @@ Boundary:
     than the bare coordinate.
 """
 
+from pybricks.tools import StopWatch, wait
+
 from rafael_constants import FIELD_WIDTH, FIELD_HEIGHT
+from rafael_robot import touch_sensor
+from rafael_motion import set_motor_speed, stop, MIN_DRIVE_SPEED, turn_to
 import rafael_odometry
+import rafael_navigation as navigation
 
 
 # ============================================================
 # FIELD SIZE  (our half only)
 # ============================================================
 
-BARRIER_X = FIELD_WIDTH / 2.0      # 1181 mm — edge of our half
+BARRIER_X = 950      # 950 mm — calbrated for our bot
 
 FIELD_X_MIN = 0.0
 FIELD_X_MAX = BARRIER_X
 
 FIELD_Y_MIN = -210.0
-FIELD_Y_MAX = 350.0         # 1143 mm — full width of our half
+FIELD_Y_MAX = 350.0         # calibrated for bot
 
 
 # How far back from the barrier we stay, so odometry drift
@@ -79,6 +84,68 @@ def calibrate():
 
     print("CALIBRATED")
     print_field_map()
+
+
+def return_home_and_calibrate(max_time_ms=3000):
+    """
+    Drive back toward the starting wall, turn to face it, then
+    creep straight forward (front-first) until the touch sensor
+    makes contact — and re-zero odometry there.
+
+    Odometry is zeroed at heading 180, not 0: the robot is now
+    facing INTO the wall, the opposite orientation from the
+    heading 0 used by calibrate() when the robot was first placed
+    front-against-the-wall at the start of the match.
+
+    This is how drift gets corrected mid-match: goTo() alone only
+    gets the robot as close to (0, 0) as odometry currently
+    *thinks* is correct, which is exactly the number that's
+    drifted. Physically touching a known, fixed wall replaces
+    that guess with ground truth.
+
+    Returns True if contact was made, False if it timed out
+    (odometry is still re-zeroed either way, just less
+    trustworthily, since the "known" wall contact never actually
+    happened).
+    """
+
+    navigation.goTo(START_X + 100, START_Y)
+
+    turn_to(180)
+
+    contact_made = _creep_forward_to_wall(max_time_ms)
+
+    rafael_odometry.reset_position(START_X, START_Y, 180)
+
+    print("CALIBRATED AT WALL (heading 180)")
+    print_field_map()
+
+    return contact_made
+
+
+def _creep_forward_to_wall(max_time_ms=3000):
+    """
+    Creep slowly forward, front-first, until the touch sensor
+    detects contact with the starting wall, or max_time_ms
+    elapses (safety timeout in case contact never registers).
+
+    Returns True if contact was made, False if it timed out.
+    """
+
+    watch = StopWatch()
+
+    set_motor_speed(MIN_DRIVE_SPEED, MIN_DRIVE_SPEED)
+
+    while not touch_sensor.pressed():
+
+        if watch.time() > max_time_ms:
+            break
+
+        wait(10)
+
+    stop()
+
+    return touch_sensor.pressed()
 
 
 # ============================================================
