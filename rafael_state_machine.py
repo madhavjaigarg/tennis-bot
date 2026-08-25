@@ -6,6 +6,11 @@ Ties everything together into the match loop:
     find ball -> go to ball -> collect -> go to barrier -> flick
     -> repeat
 
+STATE_FIND_BALL no longer just idles waiting for a ball to drift
+into view — it drives the search patrol from rafael_search.py,
+one leg at a time, checking for a ball continuously (including
+mid-turn and mid-drive) rather than only between legs.
+
 Every mechanism is real now — no stubs left. Ball collection is
 passive (driving into the ball pushes it into the hollow), so
 there's no intake motor and no rafael_intake.py. The flicker
@@ -18,10 +23,12 @@ from pybricks.tools import wait, StopWatch
 import rafael_odometry
 import rafael_field_map as field_map
 import rafael_navigation as navigation
+import rafael_search as search
 from rafael_target_manager import get_target
 from rafael_robot import touch_sensor
 from rafael_motion import set_motor_speed, stop, MIN_DRIVE_SPEED, drive_straight
 from rafael_launcher import flick
+import rafael_camera
 
 
 # ============================================================
@@ -104,13 +111,23 @@ def run():
     state = STATE_FIND_BALL
 
     while True:
+        rafael_camera.print_ball()
 
         if state == STATE_FIND_BALL:
 
             if get_target() is not None:
+                search.reset()
                 state = STATE_GO_TO_BALL
             else:
-                wait(50)
+                spotted = search.patrol_step()
+
+                if spotted:
+                    search.reset()
+                    state = STATE_GO_TO_BALL
+
+                # else: still no ball — patrol_step() already
+                # drove one leg of the route, loop back around
+                # and try the next one.
 
         elif state == STATE_GO_TO_BALL:
 
@@ -140,7 +157,7 @@ def run():
             navigation.goTo(barrier_x, current_y)
 
             if _creep_to_barrier():
-                drive_straight(-30)
+                drive_straight(-5)
                 state = STATE_FLICK
             else:
                 # Didn't make contact within the timeout —
@@ -150,4 +167,5 @@ def run():
         elif state == STATE_FLICK:
 
             _flick_ball()
+            field_map.return_home_and_calibrate()
             state = STATE_FIND_BALL
