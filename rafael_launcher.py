@@ -33,4 +33,4 @@ def flick():
 
     flicker_motor.run_target(FLICK_SPEED, FLICK_ANGLE)
 
-    flicker_motor.run_target(RETURN_SPEED, 0)
+    flicker_motor.run_target(RETURN_SPEED, 10)
