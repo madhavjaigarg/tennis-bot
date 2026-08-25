@@ -247,6 +247,12 @@ def drive_distance(
     left_motor.reset_angle(0)
     right_motor.reset_angle(0)
 
+    # Odometry's own reference points still hold whatever the
+    # encoders read before the reset above — resync them now, or
+    # its next update() call will see a bogus jump from "old
+    # angle" down to "0".
+    rafael_odometry.sync_encoder_reference()
+
     # --------------------------------------------------------
     # Heading target
     # --------------------------------------------------------
@@ -345,16 +351,26 @@ def drive_distance(
 
         # ----------------------------------------------------
         # Motor speeds
+        #
+        # Only base_speed (translation) flips with direction.
+        # correction (steering) must NOT flip — its job is to
+        # turn the robot toward the target heading, and that
+        # meaning is the same whether we're driving forward or
+        # backward. Multiplying correction by direction too
+        # (as this used to) silently reversed the heading
+        # correction any time distance_mm was negative, which
+        # made the PID steer away from the target heading
+        # instead of toward it during reverse drives.
         # ----------------------------------------------------
 
         left_speed = (
-            direction *
-            (base_speed + correction)
+            (direction * base_speed) +
+            correction
         )
 
         right_speed = (
-            direction *
-            (base_speed - correction)
+            (direction * base_speed) -
+            correction
         )
 
         left_speed = clamp(
