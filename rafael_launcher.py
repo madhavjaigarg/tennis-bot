@@ -17,7 +17,7 @@ flicker_motor = Motor(Port.C)
 # ============================================================
 
 FLICK_SPEED = 1000          # deg/s
-FLICK_ANGLE = -75            # degrees to swing out for the flick
+FLICK_ANGLE = -45            # degrees to swing out for the flick
 RETURN_SPEED = 500          # deg/s, slower on the way back
 
 
@@ -33,4 +33,4 @@ def flick():
 
     flicker_motor.run_target(FLICK_SPEED, FLICK_ANGLE)
 
-    flicker_motor.run_target(RETURN_SPEED, 10)
+    flicker_motor.run_target(RETURN_SPEED, 5)
