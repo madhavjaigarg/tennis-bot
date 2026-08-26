@@ -52,7 +52,7 @@ HORIZONTAL_FOV_DEG = 70.0
 # ============================================================
 
 CALIBRATION_DISTANCE_MM = 300.0
-CALIBRATION_AREA_PX = 850.0          # placeholder — replace with your measurement
+CALIBRATION_AREA_PX = 620.0          # placeholder — replace with your measurement
 
 
 # ============================================================
@@ -127,7 +127,7 @@ def get_ball_field_position():
     raw_x = robot_x + distance_mm * cos(theta)
     raw_y = robot_y - distance_mm * sin(theta)     # same sign flip as odometry.update()
 
-    return _smooth(raw_x, -(raw_y))
+    return _smooth(raw_x, raw_y)
 
 
 # ============================================================
