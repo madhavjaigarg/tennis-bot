@@ -27,7 +27,7 @@ RIGHT_PORT = "E"
 # Sensors
 # ------------------------
 
-TOUCH_PORT = "B"
+TOUCH_PORT = "D"
 
 # ------------------------
 # Robot Limits
@@ -44,13 +44,13 @@ MAX_ACCEL = 900
 # ------------------------
 # PID
 
-DRIVE_KP = 0.075
+DRIVE_KP = 0.08
 DRIVE_KI = 0.00
 DRIVE_KD = 0.035
 
-TURN_KP = 1.0
+TURN_KP = 1.3
 TURN_KI = 0.0
-TURN_KD = 0.5
+TURN_KD = 0.6
 
 # ------------------------
 # Field
