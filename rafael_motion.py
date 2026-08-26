@@ -34,7 +34,7 @@ from math import pi
 from pybricks.tools import wait
 import rafael_camera
 
-from rafael_robot import left_motor, right_motor, gyro
+from rafael_robot import left_motor, right_motor, gyro, touch_sensor
 
 from rafael_constants import (
     WHEEL_DIAMETER,
@@ -57,6 +57,28 @@ import rafael_odometry
 # ============================================================
 
 WHEEL_CIRCUMFERENCE = pi * WHEEL_DIAMETER
+
+
+# ============================================================
+# MOVE OUTCOME STATUS
+# ============================================================
+
+# drive_distance() and turn_to() used to both return plain
+# True/False, with True meaning EITHER "stop_condition fired"
+# (e.g. a ball was spotted) OR "check_wall_collision() fired"
+# (an unexpected bump). Callers like search.patrol_step() had
+# no way to tell those apart, so an unrelated collision during
+# a patrol leg could be misread as "ball found" and send the
+# robot off to chase a ball that isn't there.
+#
+# Use distinct string statuses instead so callers can react
+# differently to each outcome. STATUS_COMPLETE is the only
+# "everything went as planned" result; anything else means the
+# move ended early and for a specific, checkable reason.
+
+STATUS_COMPLETE = "complete"
+STATUS_COLLISION = "collision"
+STATUS_STOP_CONDITION = "stop_condition"
 
 
 # ============================================================
@@ -231,10 +253,20 @@ def drive_distance(
     If stop_condition is supplied, it's called once per loop
     tick (roughly every 10ms) and takes no arguments. The instant
     it returns True, the drive stops immediately — even if the
-    target distance hasn't been reached — and this function
-    returns True. Otherwise it drives the full distance and
-    returns False. Used for things like scanning for the ball
-    while patrolling, without waiting for each leg to finish.
+    target distance hasn't been reached. Used for things like
+    scanning for the ball while patrolling, without waiting for
+    each leg to finish.
+
+    Returns one of:
+
+        STATUS_COMPLETE        drove the full distance
+        STATUS_STOP_CONDITION  stop_condition() fired
+        STATUS_COLLISION       check_wall_collision() fired
+
+    Callers that only care whether the move finished normally
+    can check `status == STATUS_COMPLETE`; callers that need to
+    react differently to a spotted ball vs. an unexpected bump
+    should check the specific status.
     """
 
     # --------------------------------------------------------
@@ -314,6 +346,9 @@ def drive_distance(
         # ----------------------------------------------------
         # Interrupted?
         # ----------------------------------------------------
+        if check_wall_collision():
+            return STATUS_COLLISION
+
         found_ball = stop_condition is not None and stop_condition()
         #print("checking:", stop_condition, found_ball, rafael_camera.print_ball())
 
@@ -321,7 +356,7 @@ def drive_distance(
             stop()
             wait(50)
             rafael_odometry.update()
-            return True
+            return STATUS_STOP_CONDITION
 
         # ----------------------------------------------------
         # Calculate base speed
@@ -386,12 +421,12 @@ def drive_distance(
         # ----------------------------------------------------
 
         left_speed = (
-            direction * base_speed +
+            (direction * base_speed) +
             correction
         )
 
         right_speed = (
-            direction * base_speed -
+            (direction * base_speed) -
             correction
         )
 
@@ -434,7 +469,7 @@ def drive_distance(
     # Final odometry update.
     rafael_odometry.update()
 
-    return False
+    return STATUS_COMPLETE
 
 
 # ============================================================
@@ -483,9 +518,13 @@ def turn_to(
     turns until the robot faces -Y.
 
     If stop_condition is supplied, it's checked once per loop
-    tick; the turn stops immediately and this function returns
-    True the instant it returns True. Otherwise it turns all the
-    way to target_heading and returns False.
+    tick; the turn stops immediately the instant it returns True.
+
+    Returns one of:
+
+        STATUS_COMPLETE        turned all the way to target_heading
+        STATUS_STOP_CONDITION  stop_condition() fired
+        STATUS_COLLISION       check_wall_collision() fired
     """
 
     integral = 0
@@ -496,6 +535,7 @@ def turn_to(
         current_heading = get_heading()
 
         error = -(target_heading - current_heading)
+        error = normalize_angle(error)
 
         # ----------------------------------------------------
         # Finished?
@@ -509,6 +549,9 @@ def turn_to(
         # Interrupted?
         # ----------------------------------------------------
 
+        if check_wall_collision():
+            return STATUS_COLLISION
+
         found_ball = stop_condition is not None and stop_condition()
         #print("checking:", stop_condition, found_ball)
 
@@ -516,7 +559,7 @@ def turn_to(
             stop()
             wait(50)
             rafael_odometry.update()
-            return True
+            return STATUS_STOP_CONDITION
 
         # ----------------------------------------------------
         # PID
@@ -575,7 +618,7 @@ def turn_to(
 
     rafael_odometry.update()
 
-    return False
+    return STATUS_COMPLETE
 
 
 # ============================================================
@@ -619,6 +662,65 @@ def face_direction(angle):
 
     turn_to(angle)
 
+# ============================================================
+# WALL COLLISION SAFETY
+# ============================================================
+
+BACKUP_DISTANCE_MM = 50
+BACKUP_SPEED = MIN_DRIVE_SPEED
+
+
+def check_wall_collision():
+    """
+    Check the touch sensor and react immediately if the robot has
+    hit something unexpected: stop, record the position, and back
+    away a short fixed distance.
+
+    Meant to be called once per tick from inside drive_distance()
+    and turn_to() -- the two general-purpose movement primitives
+    that everything else (goTo, patrol, drive_straight, turn_by)
+    is built on top of. Deliberate wall/barrier contact
+    (field_map._creep_forward_to_wall, state_machine._creep_to_barrier)
+    drives the motors directly instead of going through these two
+    functions, so this check simply never runs during those --
+    including the barrier approach right before a flick.
+
+    Returns True if a collision was caught and handled (caller
+    should treat this like a stop_condition firing and abandon
+    the current move), False if nothing happened.
+    """
+
+    if not touch_sensor.pressed():
+        return False
+
+    stop()
+    wait(50)
+    rafael_odometry.update()
+
+    # Raw motor control for the backup, not drive_distance() --
+    # this can't recursively call back into itself or get cut off
+    # by the very check it's running.
+    left_motor.reset_angle(0)
+    right_motor.reset_angle(0)
+    rafael_odometry.sync_encoder_reference()
+
+    target_degrees = degrees_for_distance(BACKUP_DISTANCE_MM)
+
+    set_motor_speed(-BACKUP_SPEED, -BACKUP_SPEED)
+
+    while True:
+        average_angle = (abs(left_motor.angle()) + abs(right_motor.angle())) / 2.0
+
+        if average_angle >= target_degrees:
+            break
+
+        wait(10)
+
+    stop()
+    wait(50)
+    rafael_odometry.update()
+
+    return True
 
 # ============================================================
 # TEST FUNCTIONS
