@@ -195,9 +195,19 @@ def goTo(target_x, target_y, stop_condition=None):
 
     If stop_condition is supplied, it's checked continuously
     during both the turn and the drive. The instant it returns
-    True, movement stops immediately (mid-turn or mid-drive) and
-    this function returns True without reaching target_x/target_y.
-    Otherwise it completes the full move and returns False.
+    True, movement stops immediately (mid-turn or mid-drive)
+    without reaching target_x/target_y.
+
+    Returns one of rafael_motion's move statuses:
+
+        rafael_motion.STATUS_COMPLETE        reached the target
+        rafael_motion.STATUS_STOP_CONDITION  stop_condition() fired
+        rafael_motion.STATUS_COLLISION       an unexpected bump was
+                                              detected (NOT the same
+                                              as stop_condition firing —
+                                              check which one you got
+                                              before assuming a ball
+                                              was found)
     """
 
     # --------------------------------------------------------
@@ -225,7 +235,7 @@ def goTo(target_x, target_y, stop_condition=None):
     # --------------------------------------------------------
 
     if distance < 1.0:
-        return False
+        return rafael_motion.STATUS_COMPLETE
 
     # --------------------------------------------------------
     # Calculate required heading
@@ -243,13 +253,13 @@ def goTo(target_x, target_y, stop_condition=None):
     # Turn toward target
     # --------------------------------------------------------
 
-    turn_interrupted = rafael_motion.turn_to(
+    turn_status = rafael_motion.turn_to(
         target_heading,
         stop_condition=stop_condition
     )
 
-    if turn_interrupted:
-        return True
+    if turn_status != rafael_motion.STATUS_COMPLETE:
+        return turn_status
 
     # --------------------------------------------------------
     # Drive toward target
@@ -259,7 +269,7 @@ def goTo(target_x, target_y, stop_condition=None):
     # the direction we just turned toward.
     # --------------------------------------------------------
 
-    interrupted = rafael_motion.drive_distance(
+    drive_status = rafael_motion.drive_distance(
         distance,
         heading=target_heading,
         stop_condition=stop_condition
@@ -271,7 +281,7 @@ def goTo(target_x, target_y, stop_condition=None):
 
     rafael_odometry.update()
 
-    return interrupted
+    return drive_status
 
 
 # ============================================================
